@@ -323,6 +323,7 @@ class Battle {
 		player.simSend('rename', user.name, user.avatar);
 	}
 	onJoin(user) {
+		console.log("Registering Join");
 		let player = this.players[user];
 		if (player && !player.active) {
 			player.active = true;
@@ -330,6 +331,7 @@ class Battle {
 		}
 	}
 	onLeave(user) {
+		console.log("Registering Leave "+user);
 		let player = this.players[user];
 		if (player && player.active) {
 			player.active = false;
@@ -338,6 +340,7 @@ class Battle {
 	}
 
 	win(user) {
+		console.log("Registering Win");
 		if (!user) {
 			this.tie();
 			return true;
@@ -350,6 +353,7 @@ class Battle {
 		this.send('tie');
 	}
 	forfeit(user, message, side) {
+		console.log("Registering Forfeit");
 		if (this.ended || !this.started) return false;
 
 		if (!message) message = ' forfeited.';

@@ -3072,6 +3072,7 @@ class Battle extends Tools.BattleDex {
 		this.win();
 	}
 	win(side) {
+		
 		if (this.ended) {
 			return false;
 		}
@@ -3081,9 +3082,15 @@ class Battle extends Tools.BattleDex {
 			side = null;
 		}
 		this.winner = side ? side.name : '';
-
+		
 		this.add('');
 		if (side) {
+			var winnerId = toId(side.name);
+			var loserId = toId(side.foe.name);
+			console.log("battle-engine detected a win for " + winnerId);
+			var CUDManager = require('./custom_user_data');
+			CUDManager.updateEXP(winnerId, loserId, true);
+			CUDManager.updateEXP(loserId, winnerId, false);
 			this.add('win', side.name);
 		} else {
 			this.add('tie');
