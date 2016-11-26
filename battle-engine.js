@@ -276,16 +276,13 @@ class BattlePokemon {
 
 		return stat;
 	}
-	getStat(statName, unboosted, unmodified, afterMega) {
+	getStat(statName, unboosted, unmodified) {
 		statName = toId(statName);
 
 		if (statName === 'hp') return this.maxhp; // please just read .maxhp directly
 
 		// base stat
 		let stat = this.stats[statName];
-		if (afterMega) {
-			stat = this.battle.spreadModify(this.battle.getTemplate(this.canMegaEvo).baseStats, this.set)[statName];
-		}
 
 		// Download ignores Wonder Room's effect, but this results in
 		// stat stages being calculated on the opposite defensive stat
@@ -322,7 +319,7 @@ class BattlePokemon {
 		return stat;
 	}
 	getDecisionSpeed() {
-		let speed = this.getStat('spe', false, false, this.battle.gen >= 7 && this.willMega);
+		let speed = this.getStat('spe', false, false);
 		if (speed > 10000) speed = 10000;
 		if (this.battle.getPseudoWeather('trickroom')) {
 			speed = 0x2710 - speed;
@@ -1220,11 +1217,9 @@ class BattlePokemon {
 		if (!excludeAdded && this.addedType) {
 			types = types.concat(this.addedType);
 		}
-		if ('roost' in this.volatiles) {
+		// If a Fire/Flying type uses Burn Up and Roost, it becomes ???/Flying-type, but it's still grounded.
+		if ('roost' in this.volatiles && !types.includes('???')) {
 			types = types.filter(type => type !== 'Flying');
-		}
-		if ('burnup' in this.volatiles) {
-			types = types.filter(type => type !== 'Fire');
 		}
 		if (types.length) return types;
 		return [this.battle.gen >= 5 ? 'Normal' : '???'];
@@ -1235,7 +1230,8 @@ class BattlePokemon {
 		if ('smackdown' in this.volatiles) return true;
 		let item = (this.ignoringItem() ? '' : this.item);
 		if (item === 'ironball') return true;
-		if (!negateImmunity && this.hasType('Flying')) return false;
+		// If a Fire/Flying type uses Burn Up and Roost, it becomes ???/Flying-type, but it's still grounded.
+		if (!negateImmunity && this.hasType('Flying') && !('roost' in this.volatiles)) return false;
 		if (this.hasAbility('levitate') && !this.battle.suppressingAttackEvents()) return null;
 		if ('magnetrise' in this.volatiles) return false;
 		if ('telekinesis' in this.volatiles) return false;
@@ -2642,7 +2638,7 @@ class Battle extends Tools.BattleDex {
 				// it's changed; call it off
 				continue;
 			}
-			if (status.effectType === 'Ability' && this.suppressingAttackEvents() && this.activePokemon !== thing) {
+			if (status.effectType === 'Ability' && !status.isUnbreakable && this.suppressingAttackEvents() && this.activePokemon !== thing) {
 				// ignore attacking events
 				let AttackingEvents = {
 					BeforeMove: 1,
@@ -2842,18 +2838,10 @@ class Battle extends Tools.BattleDex {
 				this.resolveLastPriority(statuses, callbackType);
 			}
 		}
-		if (this.gen >= 7 && thing.willMega && (callbackType === 'onModifySpe' || callbackType === 'onModifyPriority')) {
-			status = thing.getMegaAbility();
-			if (status[callbackType] !== undefined) {
-				statuses.push({status: status, callback: status[callbackType], statusData: {id: status.id}, end: null, thing: thing});
-				this.resolveLastPriority(statuses, callbackType);
-			}
-		} else {
-			status = thing.getAbility();
-			if (status[callbackType] !== undefined || (getAll && thing.abilityData[getAll])) {
-				statuses.push({status: status, callback: status[callbackType], statusData: thing.abilityData, end: thing.clearAbility, thing: thing});
-				this.resolveLastPriority(statuses, callbackType);
-			}
+		status = thing.getAbility();
+		if (status[callbackType] !== undefined || (getAll && thing.abilityData[getAll])) {
+			statuses.push({status: status, callback: status[callbackType], statusData: thing.abilityData, end: thing.clearAbility, thing: thing});
+			this.resolveLastPriority(statuses, callbackType);
 		}
 		status = thing.getItem();
 		if (status[callbackType] !== undefined || (getAll && thing.itemData[getAll])) {
@@ -3523,6 +3511,7 @@ class Battle extends Tools.BattleDex {
 		}
 		if (!target || !target.hp) return 0;
 		if (!target.isActive) return false;
+		if (this.gen > 5 && !target.side.foe.pokemonLeft) return false;
 		effect = this.getEffect(effect);
 		boost = this.runEvent('Boost', target, source, effect, Object.assign({}, boost));
 		let success = null;
@@ -3548,6 +3537,9 @@ class Battle extends Tools.BattleDex {
 					break;
 				case 'intimidate': case 'gooey': case 'tanglinghair':
 					this.add(msg, target, i, boostBy);
+					break;
+				case 'zpower':
+					this.add(msg, target, i, boostBy, '[zeffect]');
 					break;
 				default:
 					if (effect.effectType === 'Move') {
@@ -3688,6 +3680,9 @@ class Battle extends Tools.BattleDex {
 			this.add('-heal', target, target.getHealth, '[from] drain', '[of] ' + source);
 			break;
 		case 'wish':
+			break;
+		case 'zpower':
+			this.add('-heal', target, target.getHealth, '[zeffect]');
 			break;
 		default:
 			if (effect.effectType === 'Move') {
@@ -4081,12 +4076,12 @@ class Battle extends Tools.BattleDex {
 			faintData = this.faintQueue.shift();
 			if (!faintData.target.fainted) {
 				this.add('faint', faintData.target);
+				faintData.target.side.pokemonLeft--;
 				this.runEvent('Faint', faintData.target, faintData.source, faintData.effect);
 				this.singleEvent('End', this.getAbility(faintData.target.ability), faintData.target.abilityData, faintData.target);
 				faintData.target.fainted = true;
 				faintData.target.isActive = false;
 				faintData.target.isStarted = false;
-				faintData.target.side.pokemonLeft--;
 				faintData.target.side.faintedThisTurn = true;
 			}
 		}
@@ -4126,7 +4121,6 @@ class Battle extends Tools.BattleDex {
 		if (decision) {
 			if (!decision.side && decision.pokemon) decision.side = decision.pokemon.side;
 			if (!decision.choice && decision.move) decision.choice = 'move';
-			if (decision.mega) decision.pokemon.willMega = true;
 			if (!decision.priority && decision.priority !== 0) {
 				let priorities = {
 					'beforeTurn': 100,
@@ -4156,6 +4150,8 @@ class Battle extends Tools.BattleDex {
 				decision.pokemon.switchFlag = false;
 				if (!decision.speed && decision.pokemon && decision.pokemon.isActive) decision.speed = decision.pokemon.getDecisionSpeed();
 			}
+
+			let deferPriority = this.gen >= 7 && decision.mega && !decision.pokemon.template.isMega;
 			if (decision.move) {
 				let target;
 
@@ -4166,8 +4162,15 @@ class Battle extends Tools.BattleDex {
 				}
 
 				decision.move = this.getMoveCopy(decision.move);
-				if (!decision.priority) {
+				if (!decision.priority && !deferPriority) {
 					let priority = decision.move.priority;
+					if (decision.zmove) {
+						let zMoveName = this.getZMove(decision.move, decision.pokemon, true);
+						let zMove = this.getMove(zMoveName);
+						if (zMove.exists) {
+							priority = zMove.priority;
+						}
+					}
 					priority = this.runEvent('ModifyPriority', decision.pokemon, target, decision.move, priority);
 					decision.priority = priority;
 					// In Gen 6, Quick Guard blocks moves with artificially enhanced priority.
@@ -4176,7 +4179,7 @@ class Battle extends Tools.BattleDex {
 			}
 			if (!decision.pokemon && !decision.speed) decision.speed = 1;
 			if (!decision.speed && (decision.choice === 'switch' || decision.choice === 'instaswitch') && decision.target) decision.speed = decision.target.getDecisionSpeed();
-			if (!decision.speed) decision.speed = decision.pokemon.getDecisionSpeed();
+			if (!decision.speed && !deferPriority) decision.speed = decision.pokemon.getDecisionSpeed();
 		}
 	}
 	addQueue(decision) {
@@ -4482,6 +4485,15 @@ class Battle extends Tools.BattleDex {
 			this.checkFainted();
 		} else if (decision.choice === 'pass') {
 			this.eachEvent('Update');
+			return false;
+		} else if (decision.choice === 'megaEvo' && this.gen >= 7) {
+			this.eachEvent('Update');
+			// In Gen 7, the decision order is recalculated for a Pokémon that mega evolves.
+			const moveIndex = this.queue.findIndex(queuedDecision => queuedDecision.pokemon === decision.pokemon && queuedDecision.choice === 'move');
+			if (moveIndex >= 0) {
+				const moveDecision = this.queue.splice(moveIndex, 1)[0];
+				this.insertQueue(moveDecision);
+			}
 			return false;
 		}
 
