@@ -7,7 +7,7 @@ var CustomUserDataManager  = function(){
 	} else {
 		this.data = {};
 	}
-	this.EXPYields = {trainer: 10, council: 20, leader: 30};
+	this.EXPYields = {"": 10, trainer: 10, council: 20, leader: 30};
 	var _this = this;
 	_this.isWriting = false;
 	_this.lastBackupDate = null;
@@ -27,6 +27,10 @@ CustomUserDataManager.prototype.getUserData = function(userId, key){
 	return this.data[userId][key];	
 }
 
+CustomUserDataManager.prototype.getUserIds = function(){
+	return Object.keys(this.data);
+}
+
 CustomUserDataManager.prototype.registerNewUser = function(userId){
 	this.data[userId] = {};
 	this.data[userId].isChallenger = false;
@@ -34,6 +38,10 @@ CustomUserDataManager.prototype.registerNewUser = function(userId){
 	this.data[userId].position = "";	
 	this.data[userId].EXP = 0;	
 	this.data[userId].badges = {};	
+}
+
+CustomUserDataManager.prototype.deleteUser = function(userId){
+	delete this.data[userId];
 }
 
 CustomUserDataManager.prototype.updateEXP = function(targetUser, battledUser, win){
