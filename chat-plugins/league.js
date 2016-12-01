@@ -1,14 +1,6 @@
-/**
-* The Happy Place: Quote of the Day Plugin
-* This is a command that allows a room owner to set an inspirational "quote" of the day.
-* Others may braodcast this at any time to remind the room of such.
-* Only works in a room with the id "thehappyplace"
-* Credits: panpawn, TalkTakesTime, Morfent, and sirDonovan
-*/
-
 'use strict';
-var CUDManager = require('../custom_user_data');
-
+global.CUDManager = require('../custom_user_data');
+var $ = require('jquery-deferred');
 function checkPermission(user){
 	var authorizedRoles = ["~", "%", "&", "@"];
 	var permissions = Users.usergroups[toId(user.name)];
@@ -24,6 +16,50 @@ function checkPermission(user){
 }
 
 exports.commands = {
+	registeruser:  function (target, room, user) {
+		var _this = this;
+		if(!checkPermission(user)){
+			this.errorReply("You are not authorized to use this command!");
+			return;	
+		}
+		if(!target || target.split(",").length < 1){
+			this.errorReply("Usage: /getuserinfo user");
+			return;	
+		}
+		var tmp = target.split(",");
+		for(var i = 0; i < tmp.length; i++){
+			tmp[i] = tmp[i].trim();
+		}
+		
+		var targetUser = toId(tmp[0]);
+		$.when(CUDManager.registerNewUser(targetUser)).then(function(result){
+			_this.sendReply(result);			
+		});		
+		return;
+		
+	}, 
+	getuserinfo: function (target, room, user) {
+		var _this = this;
+		if(!checkPermission(user)){
+			this.errorReply("You are not authorized to use this command!");
+			return;	
+		}
+		if(!target || target.split(",").length < 1){
+			this.errorReply("Usage: /getuserinfo user");
+			return;	
+		}
+		var tmp = target.split(",");
+		for(var i = 0; i < tmp.length; i++){
+			tmp[i] = tmp[i].trim();
+		}
+		
+		var targetUser = toId(tmp[0]);
+		$.when(CUDManager.getUserData(targetUser, "showdown_user")).then(function(result){
+			_this.sendReply(result);			
+		});		
+		return;
+		
+	}, 
 	addexp: function (target, room, user) {
 		if(!checkPermission(user)){
 			this.errorReply("You are not authorized to use this command!");
@@ -55,8 +91,7 @@ exports.commands = {
 		}
 		this.sendReply("EXP for user " + targetUser + " has been changed from " + currentEXP + " to " + newEXP + ".");
 		this.logModCommand(Chat.escapeHTML(user.name) + " updated the EXP of " + targetUser + " by " + amount + ".");
-		CUDManager.updateUser(targetUser, "EXP", newEXP);
-		CUDManager.syncData();
+		CUDManager.updateUser(targetUser, "experience", newEXP);
 		return;
 		
 	},
@@ -92,8 +127,7 @@ exports.commands = {
 		}
 		this.sendReply("EXP for user " + targetUser + " has been changed to " + newEXP + ".");
 		this.logModCommand(Chat.escapeHTML(user.name) + " updated the EXP of " + targetUser + " to " + amount + ".");
-		CUDManager.updateUser(targetUser, "EXP", newEXP);
-		CUDManager.syncData();
+		CUDManager.updateUser(targetUser, "experience", newEXP);
 		return;		
 	},
 	makechallenger: function (target, room, user) {
@@ -238,7 +272,8 @@ exports.commands = {
 		
 	},
 	leaguehelp: 'leaguehelp',
-	leaguehelp: [
+	leaguehelp: [	
+		"/getuserinfo - Get league info for a specific user /getuserinfo user",
 		"/addexp - Add EXP to a user /addexp user, amount (amount can be negative)",
 		"/setexp - Set EXP to a user /set user, amount",
 		"/leaderboard - View the current EXP of all registered league members",

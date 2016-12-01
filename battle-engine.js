@@ -13,7 +13,7 @@
 'use strict';
 
 const Tools = require('./tools');
-
+global.CUDManager = require('./custom_user_data');
 class BattlePokemon {
 	constructor(set, side) {
 		this.side = side;
@@ -3080,12 +3080,12 @@ class Battle extends Tools.BattleDex {
 		
 		this.add('');
 		if (side) {
-			var winnerId = toId(side.name);
+			var winnerId = toId(side.name); 
 			var loserId = toId(side.foe.name);
 			console.log("battle-engine detected a win for " + winnerId);
-			var CUDManager = require('./custom_user_data');
+			
 			CUDManager.updateEXP(winnerId, loserId, true);
-			CUDManager.updateEXP(loserId, winnerId, false);
+			CUDManager.updateEXP(loserId, winnerId, false, true);
 			this.add('win', side.name);
 		} else {
 			this.add('tie');
