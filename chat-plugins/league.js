@@ -38,12 +38,8 @@ exports.commands = {
 		return;
 		
 	}, 
-	getuserinfo: function (target, room, user) {
+	getleagueuserinfo: function (target, room, user) {
 		var _this = this;
-		if(!checkPermission(user)){
-			this.errorReply("You are not authorized to use this command!");
-			return;	
-		}
 		if(!target || target.split(",").length < 1){
 			this.errorReply("Usage: /getuserinfo user");
 			return;	
@@ -54,8 +50,14 @@ exports.commands = {
 		}
 		
 		var targetUser = toId(tmp[0]);
-		$.when(CUDManager.getUserData(targetUser, "showdown_user")).then(function(result){
-			_this.sendReply(result);			
+		$.when(CUDManager.getUserData()).then(function(result){
+			var buffer = "<div class='ladder'><table>";
+			buffer+="<tr><th>User</th><th>Experience Points</th><th>Type</th><th>Rank</th><th>Is a challenger</th></tr>";
+			for(var i = 0; i < result.length; i++){
+				buffer+="<tr><td>"+result[i].showdown_user+"</td><td>"+result[i].experience+"</td><td>"+result[i].typeLoyalty+"</td><td>"+result[i].position+"</td><td>"+result[i].isChallenger+"</td></tr>";
+			}
+			buffer+="</table></div>"
+			_this.sendReply('|raw|' + buffer);			
 		});		
 		return;
 		
@@ -144,15 +146,10 @@ exports.commands = {
 			tmp[i] = tmp[i].trim();
 		}
 		var targetUser = toId(tmp[0]);
-		var currentEXP = CUDManager.getUserData(targetUser, "EXP");
-		if(currentEXP.error){
-			CUDManager.registerNewUser(targetUser);
-		}		
-
+	
 		this.sendReply("User " + targetUser + " is now a challenger!");
 		this.logModCommand(Chat.escapeHTML(user.name) + " made user " + targetUser + " a challenger.");
-		CUDManager.updateUser(targetUser, "isChallenger", true);
-		CUDManager.syncData();
+		CUDManager.updateUser(targetUser, "isChallenger", true);		
 		return;		
 	},
 	removechallenger: function (target, room, user) {
@@ -177,43 +174,35 @@ exports.commands = {
 		this.sendReply("User " + targetUser + " is no longer a challenger.");
 		this.logModCommand(Chat.escapeHTML(user.name) + " removed the challenger status from " + targetUser);
 		CUDManager.updateUser(targetUser, "isChallenger", false);
-		CUDManager.syncData();
+		
 		return;		
 	},
 	challengers: function (target, room, user) {
-		var userIds = CUDManager.getUserIds();
-		var leaderboardData = [];
-		for(var i = 0; i < userIds.length; i++){
-			if(CUDManager.getUserData(userIds[i], "isChallenger")){
-				leaderboardData.push({id: userIds[i], EXP: CUDManager.getUserData(userIds[i], "EXP")});
+		var _this = this;
+		$.when(CUDManager.getAllUsers()).then(function(result){
+			var buffer = "<div class='ladder'><table>";
+			buffer+="<tr><th>User</th><th>Experience Points</th><th>Type</th><th>Rank</th></tr>";
+			for(var i = 0; i < result.length; i++){
+				if(result[i].isChallenger){
+					buffer+="<tr><td>"+result[i].showdown_user+"</td><td>"+result[i].experience+"</td><td>"+result[i].typeLoyalty+"</td><td>"+result[i].position+"</td></tr>";
+				}
 			}
-		}
-		leaderboardData = leaderboardData.sort(function(){return function(a, b){return a["EXP"] > b["EXP"];}});
-		var buffer = "<div class='ladder'><table>";
-		buffer+="<tr><th>User</th><th>Experience Points</th></tr>";
-		for(var i = 0; i < leaderboardData.length; i++){
-			buffer+="<tr><td>"+leaderboardData[i].id+"</td><td>"+leaderboardData[i].EXP+"</td></tr>";
-		}
-		buffer+="</table></div>"
-		this.sendReply('|raw|' + buffer);
-
-		return;		
+			buffer+="</table></div>"
+			_this.sendReply('|raw|' + buffer);			
+		});
+		return;			
 	},	
 	leaderboard: function (target, room, user) {
-		var userIds = CUDManager.getUserIds();
-		var leaderboardData = [];
-		for(var i = 0; i < userIds.length; i++){
-			leaderboardData.push({id: userIds[i], EXP: CUDManager.getUserData(userIds[i], "EXP"), position: CUDManager.getUserData(userIds[i], "position")});
-		}
-		leaderboardData = leaderboardData.sort(function(){return function(a, b){return a["EXP"] > b["EXP"];}});
-		var buffer = "<div class='ladder'><table>";
-		buffer+="<tr><th>User</th><th>Experience Points</th><th>Rank</th></tr>";
-		for(var i = 0; i < leaderboardData.length; i++){
-			buffer+="<tr><td>"+leaderboardData[i].id+"</td><td>"+leaderboardData[i].EXP+"</td><td>"+leaderboardData[i].position+"</td></tr>";
-		}
-		buffer+="</table></div>"
-		this.sendReply('|raw|' + buffer);
-
+		var _this = this;
+		$.when(CUDManager.getAllUsers()).then(function(result){
+			var buffer = "<div class='ladder'><table>";
+			buffer+="<tr><th>User</th><th>Experience Points</th><th>Type</th><th>Rank</th></tr>";
+			for(var i = 0; i < result.length; i++){
+				buffer+="<tr><td>"+result[i].showdown_user+"</td><td>"+result[i].experience+"</td><td>"+result[i].typeLoyalty+"</td><td>"+result[i].position+"</td></tr>";
+			}
+			buffer+="</table></div>"
+			_this.sendReply('|raw|' + buffer);			
+		});
 		return;		
 	},	
 	deleteuser: function (target, room, user) {
@@ -234,7 +223,7 @@ exports.commands = {
 		this.sendReply("User " + targetUser + " has been removed from the EXP tracking!");
 		this.logModCommand(Chat.escapeHTML(user.name) + " removed user " + targetUser + " from the EXP tracking.");
 		CUDManager.deleteUser(targetUser);
-		CUDManager.syncData();
+		
 			
 		return;		
 	},	
@@ -267,13 +256,13 @@ exports.commands = {
 		this.sendReply("Rank for user " + targetUser + " has been set to " + rank );
 		this.logModCommand(Chat.escapeHTML(user.name) + " rank of " + targetUser + " to " + rank + ".");
 		CUDManager.updateUser(targetUser, "position", rank);
-		CUDManager.syncData();
+		
 		return;
 		
 	},
 	leaguehelp: 'leaguehelp',
 	leaguehelp: [	
-		"/getuserinfo - Get league info for a specific user /getuserinfo user",
+		"/getleagueuserinfo - Get league info for a specific user /getuserinfo user",
 		"/addexp - Add EXP to a user /addexp user, amount (amount can be negative)",
 		"/setexp - Set EXP to a user /set user, amount",
 		"/leaderboard - View the current EXP of all registered league members",

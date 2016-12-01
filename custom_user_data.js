@@ -59,18 +59,22 @@ function getUserData(userId, key){
 		if(error){
 		  dfd.resolve("General error");
 		} else{
-		  var result = "";
-		  Object.keys(results).forEach(function(key){
-			 result+=key+"\n"; 
-		  });
-		  dfd.resolve(result);
+		  dfd.resolve(results);
 		}	 
 	});	
 	return dfd.promise();
 }
 
-function getUserIds(){
-	return Object.keys(data);
+function getAllUsers(){
+	var dfd = new $.Deferred();
+	connection.query('SELECT * FROM userdata', [], function (error, results, fields) {
+		if(error){
+		  dfd.resolve("General error");
+		} else{
+		  dfd.resolve(results);
+		}	 
+	});	
+	return dfd.promise();
 }
 
 function registerNewUser(userId){
@@ -93,38 +97,38 @@ function deleteUser(userId){
 	delete data[userId];
 }
 
-function updateEXP(targetUser, battledUser, win, sync){	
+function updateEXP(targetUser, battledUser, win){	
 	console.log("syncData updateEXP " + targetUser + " - " + battledUser + " - " + win);
-	if(!data[targetUser]){
-		registerNewUser(targetUser);
-	}
-	if(!data[battledUser]){
-		registerNewUser(battledUser);
-	}
-	if(data[targetUser].isChallenger){
-		//no exp
-	} else if(data[battledUser].isChallenger){
-		console.log("Not a challenger");
-		var position = data[targetUser].position;
-		console.log(position);
-		if(position){
-			console.log(EXPYields[position]);
-			console.log("Old Exp: " + data[targetUser].EXP);
-			if(win){
-				data[targetUser].EXP+=EXPYields[position];				
-			} else{
-				data[targetUser].EXP+=EXPYields[position]/2;
+	$.when(getUserData(targetUser)).then(function(targetRows){		
+		var target = targetRows[0];		
+		$.when(getUserData(battledUser)).then(function(battledRows){
+			if(target.isChallenger){
+		
+			} else if(battled.isChallenger){
+				
+				var position = target.position;
+				console.log(position);
+				if(position){
+					console.log(EXPYields[position]);
+					console.log("Old Exp: " + target.experience);
+					var newexp;
+					if(win){
+						newexp = target.experience+EXPYields[position];						
+					} else{
+						newexp = target.experience+EXPYields[position]/2;	
+					}
+					updateUser(target.showdown_user, "experience", newexp);	
+					console.log("New Exp: " + target.experience);
+				}		
 			}
-			console.log("New Exp: " + data[targetUser].EXP);
-		}		
-	}	
-	
+		})
+	});
 }
 
 module.exports = {
 	updateUser: updateUser,
 	getUserData: getUserData,
-	getUserIds: getUserIds,
+	getAllUsers: getAllUsers,
 	registerNewUser: registerNewUser,
 	deleteUser: deleteUser,
 	updateEXP: updateEXP,

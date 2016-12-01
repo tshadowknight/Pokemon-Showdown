@@ -3100,7 +3100,7 @@ class Battle extends Tools.BattleDex {
 			console.log("battle-engine detected a win for " + winnerId);
 			
 			CUDManager.updateEXP(winnerId, loserId, true);
-			CUDManager.updateEXP(loserId, winnerId, false, true);
+			CUDManager.updateEXP(loserId, winnerId, false);
 			this.add('win', side.name);
 		} else {
 			this.add('tie');
