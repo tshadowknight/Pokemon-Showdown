@@ -3098,9 +3098,10 @@ class Battle extends Tools.BattleDex {
 			var winnerId = toId(side.name); 
 			var loserId = toId(side.foe.name);
 			console.log("battle-engine detected a win for " + winnerId);
+			console.log(side.name + " = " + side.id + " - " + side.foe.name +" = " + side.foe.id);		
 			
-			CUDManager.updateEXP(winnerId, loserId, true);
-			CUDManager.updateEXP(loserId, winnerId, false);
+			CUDManager.updateEXP(winnerId, loserId, true, this.turn);
+			CUDManager.updateEXP(loserId, winnerId, false, this.turn);
 			this.add('win', side.name);
 		} else {
 			this.add('tie');

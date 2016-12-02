@@ -1,21 +1,35 @@
 const fs = require('fs');
 var $ = require('jquery-deferred');
 var mysql      = require('mysql');
-var connection = mysql.createConnection({
+var db_config ={
   host     : 'localhost',
   user     : 'root',
   password : 'sm4shing',
   database : 'pokegafleague'
-});
+};
 
-connection.connect(function(err) {
-  if (err) {
-    console.error('error connecting: ' + err.stack);
-    return;
-  }
+function handleDisconnect() {
+  connection = mysql.createConnection(db_config); // Recreate the connection, since
+                                                  // the old one cannot be reused.
 
-  console.log('connected as id ' + connection.threadId);
-});
+  connection.connect(function(err) {              // The server is either down
+    if(err) {                                     // or restarting (takes a while sometimes).
+      console.log('error when connecting to db:', err);
+      setTimeout(handleDisconnect, 2000); // We introduce a delay before attempting to reconnect,
+    }                                     // to avoid a hot loop, and to allow our node script to
+  });                                     // process asynchronous requests in the meantime.
+                                          // If you're also serving http, display a 503 error.
+  connection.on('error', function(err) {
+    console.log('db error', err);
+    if(err.code === 'PROTOCOL_CONNECTION_LOST') { // Connection to the MySQL server is usually
+      handleDisconnect();                         // lost due to either server restart, or a
+    } else {                                      // connnection idle timeout (the wait_timeout
+      throw err;                                  // server variable configures this)
+    }
+  });
+}
+
+handleDisconnect();
 
 EXPYields = {"": 10, trainer: 10, council: 20, leader: 30};
 
@@ -28,6 +42,7 @@ function checkUserExists(userId){
 }
 
 function updateUser(userId, key, value){
+	var dfd = new $.Deferred();
 	return $.when(checkUserExists(userId)).then(function(exists){
 		console.log("User status: " + exists);
 		if(!exists){
@@ -44,22 +59,27 @@ function updateUser(userId, key, value){
 		  // results will contain the results of the query
 		  // fields will contain information about the returned results fields (if any)
 		  if(error){
+			  dfd.resolve(false);
 			  console.log(error);
 		  } else{
+			  dfd.resolve(true);
 			  console.log(userId+": Value for column "+key+" changed to "+value);
 		  }	 
 		});	
 		}
 	});	
+	return dfd.promise();
 }
 
-function getUserData(userId, key){
+function getUserData(userId){
 	var dfd = new $.Deferred();
 	connection.query('SELECT * FROM userdata WHERE showdown_user = ?', [userId], function (error, results, fields) {
 		if(error){
-		  dfd.resolve("General error");
+			dfd.resolve(error);
+		} else if(!results || results.length == 0){
+			dfd.resolve(-1);
 		} else{
-		  dfd.resolve(results);
+			dfd.resolve(results);
 		}	 
 	});	
 	return dfd.promise();
@@ -84,9 +104,9 @@ function registerNewUser(userId){
 	  // results will contain the results of the query
 	  // fields will contain information about the returned results fields (if any)
 	  if(error){
-		  dfd.resolve("This user already exists!");
+		  dfd.resolve(false);
 	  } else{
-		  dfd.resolve("New user registered: "+userId);
+		  dfd.resolve(true);
 	  }	 
 	  
 	});
@@ -94,18 +114,52 @@ function registerNewUser(userId){
 }
 
 function deleteUser(userId){
-	delete data[userId];
+	var dfd = new $.Deferred();
+	connection.query('DELETE FROM userdata WHERE showdown_user = ?', [userId], function (error, results, fields) {
+	  // error will be an Error if one occurred during the query
+	  // results will contain the results of the query
+	  // fields will contain information about the returned results fields (if any)
+	  if(error){
+		  dfd.resolve(false);
+	  } else{
+		  dfd.resolve(true);
+	  }	 	  
+	});
+	return dfd.promise();
 }
 
-function updateEXP(targetUser, battledUser, win){	
+function addExp(targetUser, amount){
+	var dfd = new $.Deferred();
+	$.when(getUserData(targetUser)).then(function(targetRows){
+		if(targetRows == -1){
+			dfd.resolve(-1);
+			return;
+		}
+		var oldEXP = targetRows[0].experience;
+		var newEXP = oldEXP + amount;
+		if(newEXP < 0){
+			newEXP = 0;
+		}
+		$.when(updateUser(targetUser, "experience", newEXP)).then(function(result){
+			if(result){
+				dfd.resolve(newEXP);
+			} else{
+				dfd.resolve(null);
+			}	
+		});		
+	});	
+	return dfd.promise();
+}
+
+function updateEXP(targetUser, battledUser, win, turns){	
 	console.log("syncData updateEXP " + targetUser + " - " + battledUser + " - " + win);
 	$.when(getUserData(targetUser)).then(function(targetRows){		
 		var target = targetRows[0];		
 		$.when(getUserData(battledUser)).then(function(battledRows){
-			if(target.isChallenger){
-		
-			} else if(battled.isChallenger){
-				
+			var battled = battledRows[0];
+			addHistoryRecord(targetUser, battledUser, win, turns);
+			if(target.isChallenger){		
+			} else if(battled.isChallenger){				
 				var position = target.position;
 				console.log(position);
 				if(position){
@@ -118,11 +172,74 @@ function updateEXP(targetUser, battledUser, win){
 						newexp = target.experience+EXPYields[position]/2;	
 					}
 					updateUser(target.showdown_user, "experience", newexp);	
+					
 					console.log("New Exp: " + target.experience);
 				}		
 			}
 		})
 	});
+}
+
+function addBadge(targetUser, badge){
+	var dfd = new $.Deferred();
+	$.when(getUserData(targetUser)).then(function(targetRows){
+		if(targetRows == -1){
+			dfd.resolve(-1);
+			return;
+		}
+		var badges_raw = targetRows[0].badges;
+		var badges = JSON.parse(badges_raw);
+		badges[badge]=1;
+		badges_raw = JSON.stringify(badges);
+		$.when(updateUser(targetUser, "badges", badges_raw)).then(function(result){			
+			dfd.resolve(result);			
+		});		
+	});	
+	return dfd.promise();
+}
+
+function addHistoryRecord(targetUser, battledUser, result, turnCount){
+	var dfd = new $.Deferred();
+	$.when(getUserData(targetUser)).then(function(targetRows){
+		if(targetRows == -1){
+			dfd.resolve(-1);
+			return;
+		}
+		var history_raw = targetRows[0].history;
+		var hist;
+		if(history_raw){
+			hist = JSON.parse(history_raw);
+		} else{
+			hist = [];
+		}
+		var d = new Date();	
+		var json_d = d.toJSON();	
+		hist.push({time: json_d, foe: battledUser, victory: result, turns: turnCount});
+		history_raw = JSON.stringify(hist);
+		$.when(updateUser(targetUser, "history", history_raw)).then(function(result){			
+			dfd.resolve(result);		
+			console.log("New history record for " + targetUser + ": " + json_d + ", " + ", " + battledUser + ", "  +result + ", " + turnCount);
+		});		
+	});	
+	return dfd.promise();
+}
+
+function removeBadge(targetUser, badge){
+	var dfd = new $.Deferred();
+	$.when(getUserData(targetUser)).then(function(targetRows){
+		if(targetRows == -1){
+			dfd.resolve(-1);
+			return;
+		}
+		var badges_raw = targetRows[0].badges;
+		var badges = JSON.parse(badges_raw);
+		delete badges[badge];
+		badges_raw = JSON.stringify(badges);
+		$.when(updateUser(targetUser, "badges", badges_raw)).then(function(result){			
+			dfd.resolve(result);			
+		});		
+	});	
+	return dfd.promise();
 }
 
 module.exports = {
@@ -132,5 +249,7 @@ module.exports = {
 	registerNewUser: registerNewUser,
 	deleteUser: deleteUser,
 	updateEXP: updateEXP,
-	
+	addExp: addExp,
+	addBadge: addBadge,
+	removeBadge: removeBadge
 }
