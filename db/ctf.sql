@@ -1,0 +1,6 @@
+CREATE TABLE ctfdata (
+	id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+	tourney_id VARCHAR(255),
+	typeLoyalty VARCHAR(255),
+	experience INT UNSIGNED
+)

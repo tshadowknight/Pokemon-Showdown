@@ -1,0 +1,3 @@
+const fs = require('fs');
+var $ = require('jquery-deferred');
+var connection = require('./mysql_setup').connection;

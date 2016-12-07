@@ -1,5 +1,6 @@
 'use strict';
 global.CUDManager = require('../custom_user_data');
+global.CTFManger = require('../ctf_manager');
 var dateFormat = require('dateformat');
 var $ = require('jquery-deferred');
 function checkPermission(user){
@@ -36,6 +37,8 @@ exports.commands = {
 		$.when(CUDManager.registerNewUser(targetUser)).then(function(result){
 			if(result){
 				_this.sendReply("New user registered: "+targetUser);
+				_this.logModCommand(Chat.escapeHTML(user.name) + " registered a new user: " + targetUser);	
+
 			} else{
 				_this.sendReply("This user already exists!");
 			}
@@ -231,12 +234,19 @@ exports.commands = {
 		$.when(CUDManager.getAllUsers()).then(function(result){
 			var buffer = "<div class='ladder'><table>";
 			buffer+="<tr><th>User</th><th>Badges</th></tr>";
+			var info = [];
 			for(var i = 0; i < result.length; i++){
 				if(result[i].isChallenger){
 					var badges_raw = result[i].badges;
 					var badges = JSON.parse(badges_raw);
-					buffer+="<tr><td>"+result[i].showdown_user+"</td><td>"+Object.keys(badges).join(", ")+"</td></tr>";
+					var tmp = JSON.parse(JSON.stringify(result[i]));
+					tmp.badges = badges;
+					info.push(tmp);					
 				}
+			}
+			info = info.sort(function(a, b){return Object.keys(b.badges).length - Object.keys(a.badges).length});	
+			for(var i = 0; i < info.length; i++){
+				buffer+="<tr><td>"+info[i].showdown_user+"</td><td>"+Object.keys(info[i].badges).join(", ")+"</td></tr>";
 			}
 			buffer+="</table></div>"
 			_this.sendReply('|raw|' + buffer);			
@@ -248,8 +258,11 @@ exports.commands = {
 		$.when(CUDManager.getAllUsers()).then(function(result){
 			var buffer = "<div class='ladder'><table>";
 			buffer+="<tr><th>User</th><th>Experience Points</th><th>Type</th><th>Rank</th></tr>";
-			for(var i = 0; i < result.length; i++){
-				buffer+="<tr><td>"+result[i].showdown_user+"</td><td>"+result[i].experience+"</td><td>"+result[i].typeLoyalty+"</td><td>"+result[i].position+"</td></tr>";
+			var sorted_results = result.sort(function(a,b){return b.experience - a.experience;});
+			for(var i = 0; i < sorted_results.length; i++){
+				if(!result[i].isChallenger){
+					buffer+="<tr><td>"+result[i].showdown_user+"</td><td>"+result[i].experience+"</td><td>"+result[i].typeLoyalty+"</td><td>"+result[i].position+"</td></tr>";
+				}
 			}
 			buffer+="</table></div>"
 			_this.sendReply('|raw|' + buffer);			
@@ -481,6 +494,100 @@ exports.commands = {
 		
 		return;
 		
+	},
+	registerctf:  function (target, room, user) {
+		var _this = this;
+		if(!checkPermission(user)){
+			this.errorReply("You are not authorized to use this command!");
+			return;	
+		}
+		if(!target || target.split(",").length < 1){
+			this.errorReply("Usage: /registerctf id");
+			return;	
+		}
+		var tmp = target.split(",");
+		for(var i = 0; i < tmp.length; i++){
+			tmp[i] = tmp[i].trim();
+		}
+		
+		var targetId = toId(tmp[0]);
+		$.when(CTFManger.registerCTFT(targetId)).then(function(result){
+			if(result){
+				_this.sendReply("New ctf tourney registered: "+targetId);
+				_this.logModCommand(Chat.escapeHTML(user.name) + " registered a new ctf tourney: " + targetId);	
+
+			} else{
+				_this.sendReply("This tourney already exists!");
+			}
+						
+		});		
+		return;
+		
+	}, 
+	deletectf: function (target, room, user) {
+		var _this = this;
+		if(!checkPermission(user)){
+			this.errorReply("You are not authorized to use this command!");
+			return;	
+		}
+		if(!target || target.split(",").length < 1){
+			this.errorReply("Usage: /deletectf id");
+			return;	
+		}
+		var tmp = target.split(",");
+		for(var i = 0; i < tmp.length; i++){
+			tmp[i] = tmp[i].trim();
+		}
+		var targetId = toId(tmp[0]);
+		$.when(CTFManger.removeCTFT(targetId)).then(function(result){
+			if(result){
+				_this.sendReply("ctf tourney " + targetId + " has been removed!");
+				_this.logModCommand(Chat.escapeHTML(user.name) + " removed ctf trouney: " + targetId );
+			} else{
+				_this.sendReply("This tourney doesn't exist!");
+			}
+						
+		});		
+		return;		
+	},		
+	setctfexp: function (target, room, user) {
+		var _this = this;
+		if(!checkPermission(user)){
+			this.errorReply("You are not authorized to use this command!");
+			return;	
+		}
+		if(!target || target.split(",").length < 3){
+			this.errorReply("Usage: /setctfexp id, type, amount");
+			return;	
+		}
+		var tmp = target.split(",");
+		for(var i = 0; i < tmp.length; i++){
+			tmp[i] = tmp[i].trim();
+		}
+		var amount = parseInt(tmp[2]);
+		var type = tmp[1].toLowerCase();
+		var targetId = toId(tmp[0]);
+		if(isNaN(amount)){
+			this.errorReply("The EXP amount("+tmp[1]+") is not a valid number!");	
+			return;
+		}
+		if(!valid_types[type]){
+			this.errorReply(tmp[1] + " is not a valid Type! Rank should be one of ("+Object.keys(valid_types).join(", ")+").");	
+			return;			
+		}			
+		var newEXP = amount;
+		if(newEXP < 0){
+			newEXP = 0;
+		}
+		$.when(CTFManger.updateCTFT(targetId, type, "experience", newEXP)).then(function(result){
+			if(result){
+				_this.sendReply("EXP for tourney " + targetId + ", type " + type +" has been changed to " + newEXP + ".");
+				_this.logModCommand(Chat.escapeHTML(user.name) + " updated the EXP of tourney " + targetId + ", type" + type +" to " + amount + ".");	
+			} else{
+				_this.errorReply("An error occurred, please try again. If the problem persists please contact an administrator.");
+			}			
+		});		
+		return;		
 	},
 	leaguehelp: 'leaguehelp',
 	leaguehelp: [			
