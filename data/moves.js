@@ -1120,6 +1120,9 @@ exports.BattleMovedex = {
 				}
 			},
 		},
+		onMoveAborted: function (pokemon) {
+			pokemon.removeVolatile('beakblast');
+		},
 		onAfterMove: function (pokemon) {
 			pokemon.removeVolatile('beakblast');
 		},
@@ -1984,7 +1987,7 @@ exports.BattleMovedex = {
 		accuracy: 100,
 		basePower: 130,
 		category: "Special",
-		desc: "Until the user is no longer active, Fire-type users lose their Fire type and pure Fire-type users become Normal type.",
+		desc: "User must be Fire-type. User's Fire-type changes to ???-type until it switches out. User's secondary type (if any) is unaffected even by Roost.",
 		shortDesc: "User's Fire-type is removed until it switches out.",
 		id: "burnup",
 		name: "Burn Up",
@@ -3940,7 +3943,7 @@ exports.BattleMovedex = {
 		flags: {protect: 1, mirror: 1, heal: 1},
 		drain: [1, 2],
 		onTryHit: function (target) {
-			if (target.status !== 'slp') {
+			if (target.status !== 'slp' && !target.hasAbility('comatose')) {
 				this.add('-immune', target, '[msg]');
 				return null;
 			}
@@ -4520,8 +4523,8 @@ exports.BattleMovedex = {
 		flags: {protect: 1, reflectable: 1, mirror: 1, mystery: 1},
 		onTryHit: function (target, source) {
 			if (target === source) return false;
-			let bannedTargetAbilities = {multitype:1, stancechange:1, truant:1, schooling:1};
-			let bannedSourceAbilities = {flowergift:1, forecast:1, illusion:1, imposter:1, multitype:1, stancechange:1, trace:1, zenmode:1};
+			let bannedTargetAbilities = {comatose:1, multitype:1, schooling:1, stancechange:1, truant:1};
+			let bannedSourceAbilities = {comatose:1, flowergift:1, forecast:1, illusion:1, imposter:1, multitype:1, stancechange:1, trace:1, zenmode:1};
 			if (bannedTargetAbilities[target.ability] || bannedSourceAbilities[source.ability] || target.ability === source.ability) {
 				return false;
 			}
@@ -6145,7 +6148,7 @@ exports.BattleMovedex = {
 		flags: {protect: 1, reflectable: 1, mirror: 1, mystery: 1},
 		volatileStatus: 'gastroacid',
 		onTryHit: function (pokemon) {
-			let bannedAbilities = {multitype:1, stancechange:1, schooling:1};
+			let bannedAbilities = {comatose:1, multitype:1, schooling:1, stancechange:1};
 			if (bannedAbilities[pokemon.ability]) {
 				return false;
 			}
@@ -7447,7 +7450,7 @@ exports.BattleMovedex = {
 		accuracy: 100,
 		basePower: 65,
 		basePowerCallback: function (pokemon, target, move) {
-			if (target.status) return move.basePower * 2;
+			if (target.status || target.hasAbility('comatose')) return move.basePower * 2;
 			return move.basePower;
 		},
 		category: "Special",
@@ -8857,7 +8860,7 @@ exports.BattleMovedex = {
 		onBasePowerPriority: 4,
 		onBasePower: function (basePower, source, target, move) {
 			let item = target.getItem();
-			if (!this.singleEvent('TakeItem', item, source.itemData, source, source, move, item)) return;
+			if (!this.singleEvent('TakeItem', item, target.itemData, target, source, move, item)) return;
 			if (item.id) {
 				return this.chainModify(1.5);
 			}
@@ -11073,7 +11076,7 @@ exports.BattleMovedex = {
 		effect: {
 			noCopy: true,
 			onStart: function (pokemon) {
-				if (pokemon.status !== 'slp') {
+				if (pokemon.status !== 'slp' && !pokemon.hasAbility('comatose')) {
 					return false;
 				}
 				this.add('-start', pokemon, 'Nightmare');
@@ -11083,7 +11086,7 @@ exports.BattleMovedex = {
 				this.damage(pokemon.maxhp / 4);
 			},
 			onUpdate: function (pokemon) {
-				if (pokemon.status !== 'slp') {
+				if (pokemon.status !== 'slp' && !pokemon.hasAbility('comatose')) {
 					pokemon.removeVolatile('nightmare');
 					this.add('-end', pokemon, 'Nightmare', '[silent]');
 				}
@@ -12309,7 +12312,7 @@ exports.BattleMovedex = {
 		accuracy: true,
 		basePower: 0,
 		category: "Status",
-		desc: "For 5 turns, the terrain becomes Psychic Terrain. During the effect, the power of Psychic-type attacks made by grounded Pokemon is multiplied by 1.5 and grounded Pokemon cannot be hit by moves with priority greater than 0. Camouflage transforms the user into a Psychic type, Nature Power becomes Psychic, and Secret Power has a 30% chance to do something. Fails if the current terrain is Psychic Terrain.",
+		desc: "For 5 turns, the terrain becomes Psychic Terrain. During the effect, the power of Psychic-type attacks made by grounded Pokemon is multiplied by 1.5 and grounded Pokemon cannot be hit by moves with priority greater than 0, unless the target is an ally. Camouflage transforms the user into a Psychic type, Nature Power becomes Psychic, and Secret Power has a 30% chance to lower the target's Speed by 1 stage. Fails if the current terrain is Psychic Terrain.",
 		shortDesc: "5 turns. Grounded: +Psychic power, priority-safe.",
 		id: "psychicterrain",
 		name: "Psychic Terrain",
@@ -12327,7 +12330,7 @@ exports.BattleMovedex = {
 			},
 			onTryHitPriority: 4,
 			onTryHit: function (target, source, effect) {
-				if (!target.isGrounded() || target.isSemiInvulnerable()) return;
+				if (!target.isGrounded() || target.isSemiInvulnerable() || target.side === source.side) return;
 				if (effect && (effect.priority <= 0.1 || effect.target === 'self')) {
 					return;
 				}
@@ -13505,7 +13508,7 @@ exports.BattleMovedex = {
 		priority: 0,
 		flags: {authentic: 1, mystery: 1},
 		onTryHit: function (target, source) {
-			let bannedAbilities = {flowergift:1, forecast:1, illusion:1, imposter:1, multitype:1, trace:1, wonderguard:1, zenmode:1};
+			let bannedAbilities = {comatose:1, flowergift:1, forecast:1, illusion:1, imposter:1, multitype:1, trace:1, wonderguard:1, zenmode:1};
 			if (bannedAbilities[target.ability] || source.ability === 'multitype' || target.ability === source.ability) {
 				return false;
 			}
@@ -14524,7 +14527,7 @@ exports.BattleMovedex = {
 		priority: 0,
 		flags: {protect: 1, reflectable: 1, mirror: 1, mystery: 1},
 		onTryHit: function (pokemon) {
-			let bannedAbilities = {multitype:1, simple:1, stancechange:1, truant:1};
+			let bannedAbilities = {comatose:1, multitype:1, simple:1, stancechange:1, truant:1};
 			if (bannedAbilities[pokemon.ability]) {
 				return false;
 			}
@@ -14632,7 +14635,7 @@ exports.BattleMovedex = {
 		priority: 0,
 		flags: {protect: 1, mirror: 1, authentic: 1, mystery: 1},
 		onTryHit: function (target, source) {
-			let bannedAbilities = {illusion:1, multitype:1, stancechange:1, wonderguard:1, schooling:1};
+			let bannedAbilities = {comatose:1, illusion:1, multitype:1, schooling:1, stancechange:1, wonderguard:1};
 			if (bannedAbilities[target.ability] || bannedAbilities[source.ability]) {
 				return false;
 			}
@@ -14958,7 +14961,7 @@ exports.BattleMovedex = {
 		flags: {},
 		sleepUsable: true,
 		onTryHit: function (pokemon) {
-			if (pokemon.status !== 'slp') return false;
+			if (pokemon.status !== 'slp' && !pokemon.hasAbility('comatose')) return false;
 		},
 		onHit: function (pokemon) {
 			let moves = [];
@@ -15255,7 +15258,7 @@ exports.BattleMovedex = {
 		flags: {protect: 1, mirror: 1, sound: 1, authentic: 1},
 		sleepUsable: true,
 		onTryHit: function (target, source) {
-			if (source.status !== 'slp') return false;
+			if (source.status !== 'slp' && !source.hasAbility('comatose')) return false;
 		},
 		secondary: {
 			chance: 30,
@@ -18124,7 +18127,7 @@ exports.BattleMovedex = {
 		accuracy: 100,
 		basePower: 70,
 		basePowerCallback: function (pokemon, target, move) {
-			if (target.status === 'slp') return move.basePower * 2;
+			if (target.status === 'slp' || target.hasAbility('comatose')) return move.basePower * 2;
 			return move.basePower;
 		},
 		category: "Physical",
@@ -18696,7 +18699,7 @@ exports.BattleMovedex = {
 		priority: 0,
 		flags: {protect: 1, reflectable: 1, mirror: 1, mystery: 1},
 		onTryHit: function (pokemon) {
-			let bannedAbilities = {insomnia:1, multitype:1, stancechange:1, truant:1, schooling:1};
+			let bannedAbilities = {comatose:1, insomnia:1, multitype:1, schooling:1, stancechange:1, truant:1};
 			if (bannedAbilities[pokemon.ability]) {
 				return false;
 			}
