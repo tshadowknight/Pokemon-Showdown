@@ -8,9 +8,9 @@ var db_config ={
   database : 'pokegafleague'
 };
 
-var connection;
+var pool = mysql.createPool(db_config);
 
-function handleDisconnect() {
+/*function handleDisconnect() {
   connection = mysql.createConnection(db_config); // Recreate the connection, since
                                                   // the old one cannot be reused.
 
@@ -31,8 +31,11 @@ function handleDisconnect() {
   });
 }
 
+
+
 handleDisconnect();
+*/
 
 module.exports = {
-	connection: connection
+	pool: pool
 }
