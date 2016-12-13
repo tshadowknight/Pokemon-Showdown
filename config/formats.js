@@ -56,8 +56,8 @@ exports.Formats = [
 			'Bisharp', 'Buzzwole', 'Celesteela', 'Chansey', 'Clefable', 'Dugtrio', 'Excadrill', 'Ferrothorn', 'Garchomp', 'Genesect',
 			'Greninja', 'Heatran', 'Hippowdon', 'Hoopa-Unbound', 'Kartana', 'Kingdra', 'Landorus', 'Latios', 'Magearna', 'Magnezone',
 			'Manaphy', 'Mandibuzz', 'Mantine', 'Marowak-Alola', 'Mimikyu', 'Nihilego', 'Pelipper', 'Pheromosa', 'Porygon-Z', 'Rotom-Wash',
-			'Skarmory', 'Tapu Bulu', 'Tapu Fini', 'Tapu Koko', 'Tapu Lele', 'Toxapex', 'Tyranitar', 'Xurkitree', 'Zapdos', 'Zygarde',
-			'Alakazite', 'Charizardite X', 'Metagrossite', 'Pinsirite', 'Sablenite', 'Scizorite', 'Venusaurite',
+			'Skarmory', 'Tapu Bulu', 'Tapu Fini', 'Tapu Koko', 'Tapu Lele', 'Toxapex', 'Tyranitar', 'Xurkitree', 'Zapdos', 'Zygarde-Base',
+			'Zygarde-Complete', 'Alakazite', 'Charizardite X', 'Gyaradosite', 'Metagrossite', 'Pinsirite', 'Sablenite', 'Scizorite', 'Venusaurite',
 		],
 	},
 	{
@@ -77,7 +77,7 @@ exports.Formats = [
 		mod: 'gen7',
 		maxLevel: 5,
 		ruleset: ['Pokemon', 'Standard', 'Swagger Clause', 'Team Preview', 'Little Cup'],
-		banlist: ['Drifloon', 'Gligar', 'Meditite', 'Misdreavus', 'Murkrow', 'Porygon', 'Scyther', 'Sneasel', 'Swirlix', 'Tangela', 'Yanma', 'Eevium Z', 'Dragon Rage', 'Sonic Boom'],
+		banlist: ['Cutiefly', 'Drifloon', 'Gligar', 'Meditite', 'Misdreavus', 'Murkrow', 'Porygon', 'Scyther', 'Sneasel', 'Swirlix', 'Tangela', 'Yanma', 'Eevium Z', 'Dragon Rage', 'Sonic Boom'],
 	},
 	{
 		name: "[Gen 7] Pokebank Anything Goes",
@@ -371,13 +371,13 @@ exports.Formats = [
 		mod: 'gen7',
 		ruleset: ['Pokemon', 'Standard', 'Baton Pass Clause', 'Swagger Clause', 'Same Type Clause', 'Team Preview'],
 		banlist: [
-			'Aegislash', 'Arceus', 'Blaziken', 'Darkrai', 'Deoxys-Base', 'Deoxys-Attack', 'Dialga', 'Genesect', 'Giratina', 'Groudon', 'Ho-Oh', 'Kyogre',
-			'Kyurem-White', 'Lugia', 'Lunala', 'Mewtwo', 'Palkia', 'Pheromosa', 'Rayquaza', 'Reshiram', 'Shaymin-Sky', 'Solgaleo', 'Xerneas', 'Yveltal', 'Zekrom',
+			'Aegislash', 'Arceus', 'Blaziken', 'Darkrai', 'Deoxys-Base', 'Deoxys-Attack', 'Dialga', 'Genesect', 'Giratina', 'Groudon', 'Ho-Oh', 'Kyogre', 'Kyurem-White',
+			'Lugia', 'Lunala', 'Mewtwo', 'Palkia', 'Pheromosa', 'Rayquaza', 'Reshiram', 'Shaymin-Sky', 'Solgaleo', 'Tapu Lele', 'Xerneas', 'Yveltal', 'Zekrom', 'Zygarde-10%',
 			'Power Construct', 'Damp Rock', 'Gengarite', 'Kangaskhanite', 'Lucarionite', 'Mawilite', 'Salamencite', 'Smooth Rock', 'Terrain Extender',
 		],
 	},
 	{
-		name: "[Gen 7] Mix and Mega",
+		name: "[Gen 7] Mix and Mega (suspect test)",
 		desc: [
 			"Mega Stones and Primal Orbs can be used on almost any fully evolved Pok&eacute;mon with no Mega Evolution limit.",
 			"&bullet; <a href=\"https://www.smogon.com/forums/threads/3587740/\">Mix and Mega</a>",
@@ -473,6 +473,7 @@ exports.Formats = [
 			'Aegislash', 'Arceus', 'Blaziken', 'Darkrai', 'Deoxys', 'Dialga', 'Giratina', 'Groudon', 'Ho-Oh', 'Kyogre', 'Kyurem-White',
 			'Lugia', 'Lunala', 'Mewtwo', 'Palkia', 'Rayquaza', 'Reshiram', 'Shaymin-Sky', 'Solgaleo', 'Xerneas', 'Yveltal', 'Zekrom',
 			'Power Construct', 'Shadow Tag', 'Gengarite', 'Kangaskhanite', 'Lucarionite', 'Salamencite',
+			'Arena Trap + Dark Void', 'Arena Trap + Grass Whistle', 'Arena Trap + Hypnosis', 'Arena Trap + Lovely Kiss', 'Arena Trap + Relic Song', 'Arena Trap + Sing', 'Arena Trap + Sleep Powder', 'Arena Trap + Spore',
 		],
 		noSketch: ['Geomancy', 'Shell Smash'],
 		onValidateTeam: function (team) {
