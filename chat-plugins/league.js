@@ -1,6 +1,6 @@
 'use strict';
 global.CUDManager = require('../custom_user_data');
-global.CTFManger = require('../ctf_manager');
+global.CTFManager = require('../ctf_manager');
 var dateFormat = require('dateformat');
 var $ = require('jquery-deferred');
 var valid_badges = {
@@ -156,7 +156,7 @@ exports.commands = {
 			return;	
 		}
 		if(!target || target.split(",").length < 2){
-			this.errorReply("Usage: /addexp user, amount (amount can be negative)");
+			this.errorReply("Usage: /addexp user, amount, tourneyId (amount can be negative, tourneyId is optional)");
 			return;	
 		}
 		var tmp = target.split(",");
@@ -165,24 +165,42 @@ exports.commands = {
 		}
 		var amount = parseInt(tmp[1]);
 		var targetUser = toId(tmp[0]);
+		var tourneyId = tmp[2];
 		if(isNaN(amount)){
 			this.errorReply("The EXP amount("+tmp[1]+") is not a valid number!");	
 			return;
 		}
 		
-		$.when(CUDManager.addExp(targetUser, amount)).then(function(result){
-			if(result == -1){
-				_this.errorReply(targetUser + " is not registered!");
-			}else if(result != null){
-				_this.sendReply(amount + " EXP has been added. New EXP: " + result);
-				_this.logModCommand(Chat.escapeHTML(user.name) + " added "+amount+" to the EXP of " + targetUser + ".");	
-			} else{
-				_this.errorReply("An error occurred, please try again. If the problem persists please contact an administrator.");
-			}	
-		});		
-		
-		return;
-		
+		if(tourneyId){		
+			$.when(CTFManager.checkCTFTExists(tourneyId)).then(function(exists){
+				if(!exists){
+					_this.errorReply("Tourney " + tourneyId + " does not exist, no EXP has been changed!");
+				} else{
+					$.when(CUDManager.addExp(targetUser, amount, tourneyId)).then(function(result){
+						if(result == -1){
+							_this.errorReply(targetUser + " is not registered!");
+						}else if(result != null){
+							_this.sendReply(amount + " EXP has been added for user "+targetUser+" and tourney "+ tourneyId +".");
+							_this.logModCommand(Chat.escapeHTML(user.name) + " added "+amount+" to the EXP of " + targetUser +" and tourney "+ tourneyId + ".");	
+						} else{
+							_this.errorReply("An error occurred, please try again. If the problem persists please contact an administrator.");
+						}	
+					});	
+				}			
+			})
+		} else{
+			$.when(CUDManager.addExp(targetUser, amount)).then(function(result){
+				if(result == -1){
+					_this.errorReply(targetUser + " is not registered!");
+				}else if(result != null){
+					_this.sendReply(amount + " EXP has been added. New EXP: " + result);
+					_this.logModCommand(Chat.escapeHTML(user.name) + " added "+amount+" to the EXP of " + targetUser + ".");	
+				} else{
+					_this.errorReply("An error occurred, please try again. If the problem persists please contact an administrator.");
+				}	
+			});
+		}		
+		return;		
 	},
 	setexp: function (target, room, user) {
 		var _this = this;
@@ -488,7 +506,7 @@ exports.commands = {
 	},	
 	showctfexp: function (target, room, user) {
 		var _this = this;
-		$.when(CTFManger.getAllCTFTData()).then(function(result){
+		$.when(CTFManager.getAllCTFTData()).then(function(result){
 			var buffer = "<div class='ladder'><table>";			
 			buffer+="<tr><th>Tourney</th><th>Type</th><th>Experience</th></tr>";
 			for(var i = 0; i < result.length; i++){				
@@ -515,7 +533,7 @@ exports.commands = {
 		}
 		
 		var targetId = toId(tmp[0]);
-		$.when(CTFManger.registerCTFT(targetId)).then(function(result){
+		$.when(CTFManager.registerCTFT(targetId)).then(function(result){
 			if(result){
 				_this.sendReply("New ctf tourney registered: "+targetId);
 				_this.logModCommand(Chat.escapeHTML(user.name) + " registered a new ctf tourney: " + targetId);	
@@ -557,7 +575,7 @@ exports.commands = {
 		if(newEXP < 0){
 			newEXP = 0;
 		}
-		$.when(CTFManger.updateCTFT(targetId, type, "experience", newEXP)).then(function(result){
+		$.when(CTFManager.updateCTFT(targetId, type, "experience", newEXP)).then(function(result){
 			if(result){
 				_this.sendReply("EXP for tourney " + targetId + ", type " + type +" has been changed to " + newEXP + ".");
 				_this.logModCommand(Chat.escapeHTML(user.name) + " updated the EXP of tourney " + targetId + ", type" + type +" to " + amount + ".");	
@@ -596,7 +614,7 @@ exports.commands = {
 		if(newEXP < 0){
 			newEXP = 0;
 		}
-		$.when(CTFManger.addExp(targetId, type, newEXP)).then(function(result){
+		$.when(CTFManager.addExp(targetId, type, newEXP)).then(function(result){
 			if(result){
 				_this.sendReply("EXP for tourney " + targetId + ", type " + type +" has been changed to " + result + ".");
 				_this.logModCommand(Chat.escapeHTML(user.name) + " updated the EXP of tourney " + targetId + ", type" + type +" to " + result + ".");	
@@ -621,7 +639,7 @@ exports.commands = {
 			tmp[i] = tmp[i].trim();
 		}
 		var targetId = toId(tmp[0]);
-		$.when(CTFManger.removeCTFT(targetId)).then(function(result){
+		$.when(CTFManager.removeCTFT(targetId)).then(function(result){
 			if(result){
 				_this.sendReply("ctf tourney " + targetId + " has been removed!");
 				_this.logModCommand(Chat.escapeHTML(user.name) + " removed ctf trouney: " + targetId );
@@ -638,7 +656,7 @@ exports.commands = {
 			this.errorReply("You are not authorized to use this command!");
 			return;	
 		}		
-		$.when(CTFManger.initFlagPool()).then(function(result){
+		$.when(CTFManager.initFlagPool()).then(function(result){
 			if(result){
 				_this.sendReply("Flag tracking has been initialized!");
 				_this.logModCommand(Chat.escapeHTML(user.name) + " initialized the flag pool" );
@@ -652,7 +670,7 @@ exports.commands = {
 			this.errorReply("You are not authorized to use this command!");
 			return;	
 		}		
-		$.when(CTFManger.clearBets()).then(function(result){
+		$.when(CTFManager.clearBets()).then(function(result){
 			if(result){
 				_this.sendReply("Bets have been cleared!");
 				_this.logModCommand(Chat.escapeHTML(user.name) + " cleared the bets!" );
@@ -662,7 +680,7 @@ exports.commands = {
 	},
 	flagowners: function (target, room, user) {
 		var _this = this;
-		$.when(CTFManger.getFlagData()).then(function(rawResult){
+		$.when(CTFManager.getFlagData()).then(function(rawResult){
 			var buffer = "<div class='ladder'><table>";
 			buffer+="<tr><th>Gym</th><th>Flags</th></tr>";
 			var accumulator = {};
@@ -692,7 +710,7 @@ exports.commands = {
 	},
 	flags: function (target, room, user) {
 		var _this = this;
-		$.when(CTFManger.getFlagData()).then(function(result){
+		$.when(CTFManager.getFlagData()).then(function(result){
 			var buffer = "<div class='ladder'><table>";
 			var tmp = target.split(",");
 			for(var i = 0; i < tmp.length; i++){
@@ -750,7 +768,7 @@ exports.commands = {
 			this.errorReply(tmp[1] + " is not a valid Type! Flag should be one of ("+Object.keys(valid_badges).join(", ")+").");	
 			return;			
 		}			
-		$.when(CTFManger.assignFlag(flag , winner)).then(function(result){
+		$.when(CTFManager.assignFlag(flag , winner)).then(function(result){
 			if(result){
 				_this.sendReply(winner + " has received the " + flag + " Flag!");
 				_this.logModCommand(Chat.escapeHTML(user.name) + " awarded a flag to " + winner + ": " + flag + ".");
@@ -783,7 +801,7 @@ exports.commands = {
 			this.errorReply(tmp[1] + " is not a valid Type! Flag should be one of ("+Object.keys(valid_badges).join(", ")+").");	
 			return;			
 		}			
-		$.when(CTFManger.betFlag(tourney_id, flag)).then(function(result){
+		$.when(CTFManager.betFlag(tourney_id, flag)).then(function(result){
 			if(result){
 				_this.sendReply(flag + " was added to the betting pool for tourney: " + tourney_id);
 				_this.logModCommand(Chat.escapeHTML(user.name) + " added the " + flag + " flag to the betting pool for tourney: " + tourney_id);

@@ -104,7 +104,6 @@ function getFlagData(){
 		if(err) { 
 			console.log(err); 
 			dfd.resolve(err);
-			callback(true); 
 			return; 
 		}
 		connection.query('SELECT * FROM flagpool', [], function (error, results, fields) {
@@ -127,7 +126,6 @@ function checkCTFTExists(tourneyId){
 		if(err) { 
 			console.log(err); 
 			dfd.resolve(err);
-			callback(true); 
 			return; 
 		}
 		connection.query('SELECT id FROM ctfdata WHERE tourney_id = ?', [tourneyId], function (error, results, fields) {
@@ -318,6 +316,7 @@ module.exports = {
 	clearBets: clearBets,
 	assignFlag: assignFlag,
 	betFlag: betFlag,
-	getFlagData: getFlagData
+	getFlagData: getFlagData,
+	checkCTFTExists: checkCTFTExists
 }
 

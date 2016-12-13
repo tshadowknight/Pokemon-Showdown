@@ -1,7 +1,7 @@
 const fs = require('fs');
 var $ = require('jquery-deferred');
 var pool = require('./mysql_setup').pool;
-
+global.CTFManager = require('./ctf_manager');
 var EXPYields = {"": 20, trainer: 20, council: 20, leader: 20, elite: 40, "elite captain": 60};
 
 
@@ -155,7 +155,7 @@ function deleteUser(userId){
 	return dfd.promise();
 }
 
-function addExp(targetUser, amount){
+function addExp(targetUser, amount, tourneyId){
 	var dfd = new $.Deferred();
 
 	$.when(getUserData(targetUser)).then(function(targetRows){
@@ -168,6 +168,10 @@ function addExp(targetUser, amount){
 		if(newEXP < 0){
 			newEXP = 0;
 		}
+		if(tourneyId) {
+			CTFManager.addExp(tourneyId, targetRows[0].typeLoyalty, amount);
+		}
+		
 		$.when(updateUser(targetUser, "experience", newEXP)).then(function(result){
 			if(result){
 				dfd.resolve(newEXP);
@@ -191,19 +195,29 @@ function updateEXP(targetUser, battledUser, win, turns){
 			if(target.isChallenger){		
 			} else if(battled.isChallenger){				
 				var position = target.position;
+				var typeLoyalty = target.typeLoyalty;			
 				console.log(position);
 				if(position){
-					console.log(EXPYields[position]);
-					console.log("Old Exp: " + target.experience);
-					var newexp;
-					if(win){
-						newexp = target.experience+EXPYields[position];						
-					} else{
-						newexp = target.experience+EXPYields[position]/2;	
-					}
-					updateUser(target.showdown_user, "experience", newexp);	
-					
-					console.log("New Exp: " + target.experience);
+					$.when(CTFManager.getFlagData()).then(function(flagRows){
+						var flagCount = 0;
+						for(var i = 0; i < flagRows.length; i++ ){
+							if(flagRows[i].owner == typeLoyalty){
+								flagCount++;
+							}
+						}					
+						var flagMultiplier = (1/2) + flagCount * (1/2);					
+						console.log(EXPYields[position]);
+						console.log("Old Exp: " + target.experience);
+						var newexp;
+						if(win){
+							newexp = target.experience+EXPYields[position] * flagMultiplier;						
+						} else{
+							newexp = target.experience+EXPYields[position]/2 * flagMultiplier;	
+						}
+						updateUser(target.showdown_user, "experience", newexp);	
+						
+						console.log("New Exp: " + target.experience);
+					});	
 				}		
 			}
 		})
